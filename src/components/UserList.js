@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase.js";
-import { collection, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  deleteDoc,
+  updateDoc,
+} from "firebase/firestore";
 
 function UserList() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingUser, setEditingUser] = useState(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "users"), (querySnapshot) => {
@@ -20,7 +30,51 @@ function UserList() {
     return () => unsub();
   }, []);
 
-  // Filter users based on the search term
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this user?")) {
+      try {
+        await deleteDoc(doc(db, "users", id));
+        setUsers(users.filter((user) => user.id !== id));
+        alert("User deleted successfully!");
+      } catch (err) {
+        console.error(err);
+        alert("Error deleting user");
+      }
+    }
+  };
+
+  const handleEdit = (user) => {
+    setEditingUser(user);
+    setName(user.name);
+    setEmail(user.email);
+    setPhone(user.phone);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      const userRef = doc(db, "users", editingUser.id);
+      await updateDoc(userRef, { name, email, phone });
+      setUsers(
+        users.map((u) =>
+          u.id === editingUser.id ? { ...u, name, email, phone } : u
+        )
+      );
+      setEditingUser(null);
+      alert("User updated successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Error updating user");
+    }
+  };
+
+  const sortBy = (key) => {
+    const sorted = [...users].sort((a, b) =>
+      a[key].toLowerCase() > b[key].toLowerCase() ? 1 : -1
+    );
+    setUsers(sorted);
+  };
+
   const filteredUsers = users.filter((user) =>
     user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -66,7 +120,6 @@ function UserList() {
   return (
     <div className="overflow-x-auto">
       <h2 className="text-xl font-bold text-gray-800 mb-4">Registered Users</h2>
-      {/* Search Input Field */}
       <div className="mb-4">
         <input
           type="text"
@@ -76,30 +129,80 @@ function UserList() {
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
-      <table className="min-w-full bg-white rounded-lg shadow">
-        <thead className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-          <tr>
-            <th className="py-3 px-6 text-left">Name</th>
-            <th className="py-3 px-6 text-left">Email</th>
-            <th className="py-3 px-6 text-left">Phone</th>
-          </tr>
-        </thead>
-        <tbody className="text-gray-600 text-sm font-light">
-          {/* Render filteredUsers instead of users */}
-          {filteredUsers.map((user) => (
-            <tr
-              key={user.id}
-              className="border-b border-gray-200 hover:bg-gray-100"
-            >
-              <td className="py-3 px-6 text-left whitespace-nowrap">
-                {user.name}
-              </td>
-              <td className="py-3 px-6 text-left">{user.email}</td>
-              <td className="py-3 px-6 text-left">{user.phone}</td>
+      {editingUser ? (
+        <form onSubmit={handleUpdate}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name"
+          />
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+          />
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Phone"
+          />
+          <button type="submit">Update</button>
+        </form>
+      ) : (
+        <table className="min-w-full bg-white rounded-lg shadow">
+          <thead className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+            <tr>
+              <th
+                className="py-3 px-6 text-left"
+                onClick={() => sortBy("name")}
+              >
+                Name
+              </th>
+              <th
+                className="py-3 px-6 text-left"
+                onClick={() => sortBy("email")}
+              >
+                Email
+              </th>
+              <th
+                className="py-3 px-6 text-left"
+                onClick={() => sortBy("phone")}
+              >
+                Phone
+              </th>
+              <th className="py-3 px-6 text-left">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="text-gray-600 text-sm font-light">
+            {filteredUsers.map((user) => (
+              <tr
+                key={user.id}
+                className="border-b border-gray-200 hover:bg-gray-100"
+              >
+                <td className="py-3 px-6 text-left whitespace-nowrap">
+                  {user.name}
+                </td>
+                <td className="py-3 px-6 text-left">{user.email}</td>
+                <td className="py-3 px-6 text-left">{user.phone}</td>
+                <td className="py-3 px-6 text-left">
+                  <button
+                    className="btn btn-primary btn-sm mr-2"
+                    onClick={() => handleEdit(user)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(user.id)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
