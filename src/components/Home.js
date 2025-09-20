@@ -5,7 +5,7 @@ function Home() {
     <div className="container mt-5">
       <h1>Welcome to {`Library Management System`}</h1>
       <p>Manage your data efficiently using our mobile app.</p>
-      <Link to="/registration" className="btn btn-primary">
+      <Link to="../register" className="btn btn-primary">
         Register
       </Link>
     </div>
